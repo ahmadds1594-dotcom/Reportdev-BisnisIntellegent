@@ -1,0 +1,33 @@
+select
+Site,
+BARCODE,
+OpeningStock		= SUM (OpeningStock),
+OpeningInTransit	= SUM (OpeningInTransit),
+ClosingStock		= SUM (ClosingStock),
+OpeningStockAct		= SUM (OpeningStockAccounting ),
+OpeningValueAct		= SUM (OpeningAccountingValue),	
+ClosingStockAct		= SUM (ClosingStockAccounting), 
+ClosingValAct		= SUM (ClosingValueAccounting) 
+from InventoryMovement
+where FromDate = '01 Dec 2025'
+and site = '1209'
+GROUP BY 
+SITE,
+BARCODE
+ORDER BY SITE,
+BARCODE;
+--and Barcode = '9990000650774'
+--and Depot = '1101'
+
+
+select top 10 * from InventoryMovement
+
+select
+OpeningStockAct = SUM (OpeningStockAccounting ),
+OpeningValueAct = SUM (OpeningAccountingValue),
+ClosingStockAct = SUM (ClosingStockAccounting), 
+ClosingValAct	= SUM (ClosingValueAccounting) 
+from InventoryMovement
+where FromDate = '01 Des 2025'
+--and Barcode = '9990000650774'
+--and Depot = '1101'
