@@ -1,0 +1,129 @@
+WITH Register_Usage AS (
+    SELECT 
+        P.GP_SOUCHE,
+        P.GP_CAISSE,
+        P.GP_DATEPIECE,
+        COUNT(DISTINCT P.GP_NUMERO) AS ctr_bon   -- your usage metric
+    FROM PIECE P
+    INNER JOIN LIGNE L
+        ON  P.GP_NATUREPIECEG = L.GL_NATUREPIECEG
+        AND P.GP_SOUCHE       = L.GL_SOUCHE
+        AND P.GP_NUMERO       = L.GL_NUMERO
+      WHERE
+        P.GP_NATUREPIECEG = 'FFO'
+        AND LEFT(P.GP_SOUCHE,1) IN ('2','C','8','9')
+        AND P.GP_DATEPIECE >='2026-01-01'
+    GROUP BY 
+        P.GP_SOUCHE,
+        P.GP_CAISSE,
+        P.GP_DATEPIECE
+),
+
+Ranked_Registers AS (
+    SELECT 
+        GP_SOUCHE,
+        GP_CAISSE,
+        GP_DATEPIECE,
+        ctr_bon,
+        ROW_NUMBER() OVER (
+            PARTITION BY GP_SOUCHE, GP_DATEPIECE
+            ORDER BY ctr_bon DESC, GP_CAISSE
+        ) AS Register_No   -- 1 = most used that day in that store
+    FROM Register_Usage
+)
+
+
+
+SELECT
+    P.GP_NATUREPIECEG                          AS Reference,
+    P.GP_SOUCHE                                AS Site,
+	E.et_libelle AS SITEnAME,
+    d.Dyear,
+    d.DMonth,
+    d.DPeriode,
+    d.DDate,
+    d.DWeek,
+    d.DDay,
+    DATEPART(HOUR, P.GP_HEURECREATION)        AS DHour,
+    P.GP_CAISSE                                AS Register,
+	R.Register_No as usage_rank,
+
+    COUNT(DISTINCT P.GP_NUMERO)               AS ctr_bon,
+    cast(SUM(GL_QTEFACT) as numeric(18,0))                            AS total_Qty,
+
+    COUNT(DISTINCT CASE WHEN m.IsMember = 1 
+                        THEN P.GP_NUMERO END) AS ctr_bon_member,
+
+    cast(SUM(CASE WHEN m.IsMember = 1 
+             THEN GL_QTEFACT ELSE 0 END) as numeric(18,0))     AS total_qty_Member,
+
+    COUNT(DISTINCT CASE WHEN m.IsMember = 0 
+                        THEN P.GP_NUMERO END) AS ctr_bon_nonmember,
+
+    cast(SUM(CASE WHEN m.IsMember = 0 
+             THEN GL_QTEFACT ELSE 0 END) as numeric(18,0))     AS total_qty_NonMember
+
+FROM PIECE P
+INNER JOIN LIGNE L
+    ON  P.GP_NATUREPIECEG = L.GL_NATUREPIECEG
+    AND P.GP_SOUCHE       = L.GL_SOUCHE
+    AND P.GP_NUMERO       = L.GL_NUMERO
+
+LEFT JOIN TIERS T
+    ON T.T_TIERS = P.GP_TIERS
+
+LEFT JOIN TIERSCOMPL TC
+    ON TC.YTC_TIERS = T.T_TIERS
+
+LEFT JOIN Ranked_Registers R
+   ON R.GP_SOUCHE = P.GP_SOUCHE
+  AND R.GP_CAISSE = P.GP_CAISSE
+  AND R.GP_DATEPIECE = P.GP_DATEPIECE
+
+left join ETABLISS e
+on p.gp_souche = e.ET_ETABLISSEMENT
+
+
+CROSS APPLY
+(
+    SELECT 
+        YEAR(P.GP_DATEPIECE)                              AS Dyear,
+        FORMAT(P.GP_DATEPIECE, 'MM')                     AS DMonth,
+        CONVERT(char(6), P.GP_DATEPIECE, 112)            AS DPeriode,
+        CONVERT(date, P.GP_DATEPIECE)                    AS DDate,
+        RIGHT('00' + CAST(DATEPART(WEEK, P.GP_DATEPIECE) AS varchar(2)), 2)  AS DWeek,
+        CAST(((DATEPART(WEEKDAY, P.GP_DATEPIECE) + 5) % 7) + 1 AS varchar(1))
+          + ' - ' + DATENAME(WEEKDAY, P.GP_DATEPIECE)    AS DDay
+) d
+
+CROSS APPLY
+(
+    SELECT 
+        CASE 
+          WHEN P.GP_TIERS <> 'SC000004'
+           AND P.GP_TIERS IS NOT NULL
+           AND ISNULL(TC.YTC_TABLELIBRETIERS1,'') IN ('MEM','')
+          THEN 1
+          ELSE 0
+        END AS IsMember
+) m
+
+WHERE
+    P.GP_NATUREPIECEG = 'FFO'
+    AND LEFT(P.GP_SOUCHE,1) IN ('2','C','8','9')
+    AND P.GP_DATEPIECE >= '2026-05-01'
+   -- AND P.GP_DATEPIECE <  '2025-09-02'   -- safer than BETWEEN
+
+GROUP BY
+    P.GP_NATUREPIECEG,
+    P.GP_SOUCHE,
+    P.GP_CAISSE,
+    d.Dyear,
+    d.DMonth,
+    d.DPeriode,
+    d.DDate,
+    d.DWeek,
+    d.DDay,
+    DATEPART(HOUR, P.GP_HEURECREATION),
+	R.Register_No ,
+	E.et_libelle
