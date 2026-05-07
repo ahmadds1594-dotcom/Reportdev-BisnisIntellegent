@@ -1,0 +1,206 @@
+SELECT
+    T_TIERS        AS vendor_code,
+    T_LIBELLE      AS vendor_name,
+    T_ADRESSE1     AS address1,
+    T_ADRESSE2     AS address2,
+    T_CODEPOSTAL   AS postal_code,
+    T_MODEREGLE    AS payment_term,
+    T_DEVISE       AS currency
+FROM GCVTIERSCOMPL
+WHERE
+    --LEFT(T_TIERS, 2) IN ('15','32')   
+
+     T_NATUREAUXI = 'FOU'
+    AND ISNULL(T_FERME,'') <> 'X'
+
+
+
+
+
+
+	WHERE
+    (T_TIERS LIKE 'V15%' OR T_TIERS LIKE 'V32%')
+    AND T_NATUREAUXI = 'FOU'
+    AND ISNULL(T_FERME,'') <> 'X'
+
+	SELECT
+    T_TIERS        AS vendor_code,
+    T_LIBELLE      AS vendor_name,
+    T_ADRESSE1     AS address1,
+    T_ADRESSE2     AS address2,
+    T_CODEPOSTAL   AS postal_code,
+    T_MODEREGLE    AS payment_term,
+    T_DEVISE       AS currency
+FROM GCVTIERSCOMPL
+WHERE
+    --LEFT(T_TIERS, 2) IN ('15','32')   
+
+     T_NATUREAUXI = 'FOU'
+    AND ISNULL(T_FERME,'') <> 'X'
+
+
+
+
+	SELECT
+    T_TIERS        AS vendor_code,
+    T_LIBELLE      AS vendor_name,
+    T_ADRESSE1     AS address1,
+    T_ADRESSE2     AS address2,
+    T_CODEPOSTAL   AS postal_code,
+    T_MODEREGLE    AS payment_term,
+    T_DEVISE       AS currency
+FROM GCVTIERSCOMPL
+WHERE
+    LEFT(T_TIERS, 3) IN ('V15','V32')  
+
+    AND T_NATUREAUXI = 'FOU'
+    AND ISNULL(T_FERME,'') <> 'X';
+
+	SELECT DISTINCT LEFT(T_TIERS,3), RIGHT(T_TIERS,2)
+FROM GCVTIERSCOMPL
+
+
+SELECT *
+FROM GCVTIERSCOMPL
+WHERE T_TIERS LIKE '%V15%' 
+   OR T_TIERS LIKE '%V32%'
+
+   SELECT *
+FROM GCVTIERSCOMPL
+WHERE T_TIERS LIKE 'V15%' 
+   OR T_TIERS LIKE 'V32%'
+
+   SELECT DISTINCT LEFT(T_TIERS,3)
+FROM GCVTIERSCOMPL
+WHERE T_TIERS LIKE 'V%'
+
+
+SELECT TOP 100 *
+FROM GCVTIERSCOMPL
+WHERE 
+    T_LIBELLE LIKE '%15%' 
+    OR T_LIBELLE LIKE '%32%'
+
+
+	SELECT distinct
+    YTC_TABLELIBREFOU1
+    --YTC_TABLELIBREFOU2,
+    --YTC_TABLELIBREFOU3
+FROM GCVTIERSCOMPL
+WHERE T_TIERS LIKE 'V%'
+
+SELECT DISTINCT YX_TYPE
+FROM CHOIXEXT
+WHERE YX_CODE IN ('ZEBD','ZEJK','ZEM1','ZEM2','ZSAD','ZVOT','ZVRI','ZVRL','ZVTI','ZVTL')
+
+SELECT 
+    V.T_TIERS,
+    V.T_LIBELLE,
+    V.YTC_TABLELIBREFOU1,
+    CE.YX_LIBELLE AS DESCRIPTION
+FROM GCVTIERSCOMPL V
+LEFT JOIN CHOIXEXT CE
+    ON CE.YX_CODE = V.YTC_TABLELIBREFOU1
+WHERE V.T_TIERS LIKE 'V%'
+
+
+SELECT DISTINCT
+    CE.YX_TYPE,
+    CE.YX_CODE,
+    CE.YX_LIBELLE
+FROM CHOIXEXT CE
+WHERE CE.YX_CODE IN ('ZEBD','ZEJK','ZEM1','ZEM2','ZSAD','ZVOT','ZVRI','ZVRL','ZVTI','ZVTL')
+
+
+
+SELECT
+    V.T_TIERS        AS vendor_code,
+    V.T_LIBELLE      AS vendor_name,
+    V.T_ADRESSE1     AS address1,
+    V.T_ADRESSE2     AS address2,
+    V.T_CODEPOSTAL   AS postal_code,
+    V.T_MODEREGLE    AS payment_term,
+    V.T_DEVISE       AS currency,
+
+    V.YTC_TABLELIBREFOU1,
+    CE.YX_LIBELLE    AS vendor_type
+
+FROM GCVTIERSCOMPL V
+
+LEFT JOIN CHOIXEXT CE
+    ON CE.YX_CODE = V.YTC_TABLELIBREFOU1
+ 
+
+WHERE
+    V.T_NATUREAUXI = 'FOU'              
+    AND ISNULL(V.T_FERME,'') <> 'X'   
+
+   
+    AND V.YTC_TABLELIBREFOU1 IN ('ZVTI','ZVTL')
+	AND CE.YX_LIBELLE IN (
+    'VENDOR IMPORT THIRD PARTY',
+    'VENDOR LOCAL THIRD PARTY'
+)
+
+
+SELECT
+    V.T_TIERS        AS vendor_code,
+    V.T_LIBELLE      AS vendor_name,
+    V.T_ADRESSE1     AS address1,
+    V.T_ADRESSE2     AS address2,
+    V.T_CODEPOSTAL   AS postal_code,
+    V.T_MODEREGLE    AS payment_term,
+    V.T_DEVISE       AS currency,
+
+    V.YTC_TABLELIBREFOU1,
+    CE.YX_LIBELLE    AS vendor_type
+
+FROM GCVTIERSCOMPL V
+
+LEFT JOIN CHOIXEXT CE
+    ON CE.YX_CODE = V.YTC_TABLELIBREFOU1
+
+--WHERE
+--    V.T_TIERS IN ('V102415','V100113','V101798')   
+
+    AND V.T_NATUREAUXI = 'FOU'
+    AND ISNULL(V.T_FERME,'') <> 'X'
+
+
+
+
+
+
+
+
+
+	SELECT
+    V.T_TIERS        AS vendor_code,
+    V.T_LIBELLE      AS vendor_name,
+	V.T_VILLE		AS city_vendor,
+    V.T_ADRESSE1     AS address1,
+    V.T_ADRESSE2     AS address2,
+    V.T_CODEPOSTAL   AS postal_code,
+    V.T_MODEREGLE    AS payment_term,
+    V.T_DEVISE       AS currency,
+
+    V.YTC_TABLELIBREFOU1,
+    CE.YX_LIBELLE    AS vendor_type
+
+FROM GCVTIERSCOMPL V
+
+LEFT JOIN CHOIXEXT CE
+    ON CE.YX_CODE = V.YTC_TABLELIBREFOU1
+    
+
+WHERE
+    V.T_NATUREAUXI = 'FOU'              
+    AND ISNULL(V.T_FERME,'') <> 'X'    
+
+    AND V.YTC_TABLELIBREFOU1 IN ('ZVTI','ZVTL')
+
+
+
+	select top 10 * from GCVTIERSCOMPL
+
+
