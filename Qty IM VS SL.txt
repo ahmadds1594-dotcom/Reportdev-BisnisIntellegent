@@ -1,0 +1,65 @@
+--QUERY UNION
+select periode,site,articlecode,
+sum(qty_im) as qty_im, 
+sum(value_im) as value_im,
+sum(qty_in) as qty_in,
+sum(qty_out) as qty_out,
+sum(trf_in) as trf_in,
+sum(trf_out) as trf_out 
+from (
+  
+SELECT 
+case when fromDate='01 Jan 2026' then '202601' 
+     when fromDate='01 Feb 2026' then '202602' else 
+	 '202603' end as periode, 
+  [Site],[ArticleCode],
+ [TransferOut] as qty_im,
+ [TransferOutValue] as value_im,
+ 0 as qty_in,0 as trf_in , 0 as qty_out , 0 as trf_out
+  FROM [DELAMI_SAP].[dbo].[InventoryMovement] where fromdate in ( '01 Jan 2026','01 Feb 2026','01 Mar 2026')
+  and not ( transferout=0 and transferOutValue=0)
+
+  union all
+
+
+	select '202601' as periode,site as site, ArticleCode, 0 as qty_im,0 as value_im,0 as qty_in,0 as trf_in , qty as qty_out , cost as trf_out
+	from SLOST_0126
+	where GL_NATUREPIECEG in ('TEM') and site=gl_souche
+
+	union all
+
+   select '202601' as periode,site, ArticleCode, 0 as qty_im,0 as value_im,qty as qty_in , cost as trf_in, 0 as qty_out,0 as trf_out 
+	from SLOST_0126
+	where GL_NATUREPIECEG in ('TEM')and site<>gl_souche 
+	
+	union all
+
+	select '202602' as periode,site as site, ArticleCode, 0 as qty_im,0 as value_im,0 as qty_in,0 as trf_in , qty as qty_out , cost as trf_out
+	from SLOST_0226
+	where GL_NATUREPIECEG in ('TEM') and site=gl_souche
+
+	union all
+
+    select '202602' as periode,site, ArticleCode, 0 as qty_im,0 as value_im,qty as qty_in , cost as trf_in, 0 as qty_out,0 as trf_out 
+	from SLOST_0226
+	where GL_NATUREPIECEG in ('TEM')and site<>gl_souche
+	
+	union all 
+
+	select '202603' as periode,site as site, ArticleCode, 0 as qty_im,0 as value_im,0 as qty_in,0 as trf_in , qty as qty_out , cost as trf_out
+	from SLOST_0326
+	where GL_NATUREPIECEG in ('TEM') and site=gl_souche
+
+	union all
+
+    select '202603' as periode,site, ArticleCode, 0 as qty_im,0 as value_im,qty as qty_in , cost as trf_in, 0 as qty_out,0 as trf_out 
+	from SLOST_0326
+	where GL_NATUREPIECEG in ('TEM')and site<>gl_souche
+	
+	)x
+	group by periode,site,articlecode
+
+
+		--and PIECE.GP_SUPPRIME <> 'X'
+		--and piece.gp_etatvisa = 'VIS'
+		--and (GL_DATEPIECE between @SnapShootDate and @ToDate)
