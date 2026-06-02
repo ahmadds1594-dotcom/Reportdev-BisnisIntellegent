@@ -1,0 +1,55 @@
+SELECT
+    C.MCC_CODECOND                         AS Promo_Code,
+    C.MCC_LIBELLE                          AS Promo_Name,
+    CONVERT(DATE,C.MCC_DATEDEBUTCOND)      AS Start_Date,
+    CONVERT(DATE,C.MCC_DATEFINCOND)        AS End_Date,
+    C.MCC_TYPECONDCOM                      AS Promo_Type,
+    C.MCC_CONDARTICLE                      AS Article_Based_Flag,
+    C.MCC_DECLENCHART                      AS Item_Trigger_GUID,
+
+    T.MCN_QTEMIN                           AS Min_Qty,
+    T.MCN_QTEMAX                           AS Max_Qty,
+    T.MCN_MTMIN                            AS Min_Amount,
+    T.MCN_MTMAX                            AS Max_Amount,
+    T.MCN_PRIX                             AS Promo_Price,
+    T.MCN_POURCENT                         AS Discount_Percent,
+    T.MCN_REMISE                           AS Discount_Amount,
+
+    CASE
+        WHEN T.MCN_PRIX > 0 THEN 'SPECIAL PRICE'
+        WHEN T.MCN_POURCENT > 0 THEN 'PERCENT DISCOUNT'
+        WHEN T.MCN_REMISE > 0 THEN 'AMOUNT DISCOUNT'
+        ELSE 'OTHER'
+    END                                    AS Promotion_Mechanism,
+
+    CASE
+        WHEN C.MCC_FERME = 'X' THEN 'INACTIVE'
+        ELSE 'ACTIVE'
+    END                                    AS Promotion_Status
+
+FROM CONDITIONCOM C
+LEFT JOIN MCONDCOMTRANCHE T
+       ON C.MCC_CODECOND = T.MCN_CODECOND
+
+WHERE C.MCC_CODECOND = 'ETC051';
+
+
+--WHERE C.MCC_FERME <> 'X'
+--WHERE GETDATE()     BETWEEN C.MCC_DATEDEBUTCOND
+--                    AND C.MCC_DATEFINCOND
+
+
+SELECT
+    C.MCC_CODECOND                    AS [Promo Code],
+    C.MCC_LIBELLE                     AS [Promo Description],
+    CONVERT(DATE,C.MCC_DATEDEBUTCOND) AS [Start Date],
+    CONVERT(DATE,C.MCC_DATEFINCOND)   AS [End Date],
+    T.MCN_QTEMIN                      AS [Minimum Qty],
+    T.MCN_PRIX                        AS [Promo Price],
+    C.MCC_TYPECONDCOM                 AS [Promotion Type]
+FROM CONDITIONCOM C
+LEFT JOIN MCONDCOMTRANCHE T
+       ON C.MCC_CODECOND = T.MCN_CODECOND
+WHERE C.MCC_CODECOND = 'ETC051';
+
+select MCC_CODECOND,MCC_LIBELLE,MCC_DATEDEBUTCOND,MCC_DATEFINCOND,MCC_TYPECONDCOM,MCC_FERME from CONDITIONCOM where MCC_CODECOND='ETC051'
