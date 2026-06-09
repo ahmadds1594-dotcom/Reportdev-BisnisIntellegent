@@ -122,6 +122,165 @@ WHERE P.GP_DATEPIECE BETWEEN '2025-02-01' AND '2026-12-31'
   --AND P.GP_TIERS = 'V100174'
   AND P.GP_NUMERO = '26390'
 
+
+
+perubahan tanggal 
+SELECT
+    -- HEADER
+    P.GP_REFINTERNE                     AS Internal_reff,
+    CONVERT(date, P.GP_DATEPIECE)      AS TANGGAL,
+
+    -- SITE / COMPANY
+    P.GP_DEPOT                         AS Site,
+    E.ET_LIBELLE                       AS Nama_site,
+    E.ET_ADRESSE1                      AS Alamat,
+    E.ET_TELEPHONE                     AS Telephone,
+    E.ET_CODEPOSTAL                    AS Kode_pos,
+    E.ET_VILLE                         AS Kota,
+
+    -- USER / APPROVAL
+    U1.US_LIBELLE                      AS CREATED_BY,
+    P.GP_VISEUR                        AS APPROVED_BY,
+    U2.US_LIBELLE                      AS APPROVED_BY2,
+
+    -- DOCUMENT INFO
+    P.GP_LIBREPIECE1                   AS TYPE_PO,
+    P.GP_LIBREPIECE2                   AS TYPE_PENERIMAAN,
+    P.GP_DEVISE                        AS CURRENCY,
+    P.GP_REGIMETAXE                    AS TAX,
+
+    -- VENDOR
+    V.T_TIERS                          AS vendor,
+    V.T_LIBELLE                        AS Nama_vendor,
+    V.T_ADRESSE1                       AS alamat_vendor,
+    V.T_EMAIL                          AS EMAIL,
+    V.T_CODEPOSTAL                     AS kodepos_vendor,
+    V.T_VILLE                          AS kota_vendor,
+
+    -- PAYMENT
+    P.GP_MODEREGLE                     AS PAYMENT_TERM_CODE,
+    M.MR_LIBELLE                       AS PAYMENT_TERM_DESC,
+
+    -- DELIVERY
+    CONVERT(date, P.GP_DATELIVRAISON)  AS DELIVERY_DATE,
+
+    -- DETAIL
+    L.GL_NUMLIGNE                      AS NO_URUT,
+    L.GL_NUMORDRE                      AS NO_URUT2,
+    L.GL_CODEARTICLE                   AS Artikel_Code,
+    L.GL_REFARTBARRE                   AS BARCODE,
+    L.GL_LIBELLE                       AS DESCRIPTION,
+	A.GA_LIBCOMPL						AS Style_Kode,
+	ISNULL(STYLE_NAME.MUD_VALCHAMP,'') AS Style_Name,
+	A.GA_LIBELLE						AS DESCRIPTION2,
+	
+
+    -- QTY / PRICE
+    L.GL_QTEFACT                       AS QTY,
+    A.GA_PVTTC                         AS TAG_PRICE,
+    L.GL_PUHTDEV                       AS UNIT_PRICE,
+    L.GL_REMISELIGNE                   AS DISKON,
+
+    -- AMOUNT
+    L.GL_TOTALHTDEV                    AS DPP,
+    L.GL_TOTALTTCDEV - L.GL_TOTALHTDEV AS PPN,
+    L.GL_TOTALTTCDEV                   AS TOTAL_AMOUNT,
+
+    -- UDF / PLM
+    r.MUD_VALCHAMP                     AS REMARKS_FI,
+    m1.MUD_VALCHAMP                    AS [PLM - Approval by],
+    b.MUD_VALCHAMP                     AS [PLM - Created by],
+    c.MUD_VALCHAMP                     AS [PLM - PO No#],
+    inc.MUD_VALCHAMP                   AS INCOTERM
+
+FROM PIECE P
+
+LEFT JOIN LIGNE L
+       ON P.GP_NUMERO = L.GL_NUMERO
+      AND P.GP_NATUREPIECEG = L.GL_NATUREPIECEG
+      AND P.GP_SOUCHE = L.GL_SOUCHE
+
+LEFT JOIN GCVTIERSCOMPL V
+       ON P.GP_TIERS = V.T_TIERS
+
+LEFT JOIN ETABLISS E
+       ON P.GP_DEPOT = E.ET_ETABLISSEMENT
+
+LEFT JOIN UTILISAT U1
+       ON P.GP_CREATEUR = U1.US_UTILISATEUR
+
+LEFT JOIN UTILISAT U2
+       ON P.GP_VISEUR = U2.US_UTILISATEUR
+
+LEFT JOIN MODEREGL M
+       ON P.GP_MODEREGLE = M.MR_MODEREGLE
+
+LEFT JOIN ARTICLE_COMPL WITH(NOLOCK)
+       ON L.GL_ARTICLE = ARTICLE_COMPL.GA_ARTICLE
+
+LEFT JOIN ARTICLE A
+       ON A.GA_ARTICLE = L.GL_ARTICLE
+	      
+	   --tambahan
+LEFT JOIN MCHPSUTILISATDATA STYLE_NAME
+    ON STYLE_NAME.MUD_ENTITEMCD = 'ART'
+    AND STYLE_NAME.MUD_IDCHAMP = 4
+    AND STYLE_NAME.MUD_CLEENTITE = A.GA_ARTICLE
+
+	--LEFT JOIN ARTICLE B 
+ --   ON ARTICLE.GA_CODEARTICLE = B.GA_CODEARTICLE
+ --   AND B.GA_STATUTART = 'GEN'
+
+-- REMARKS FI
+LEFT JOIN MCHPSUTILISATDATA r
+       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = r.MUD_CLEENTITE
+      AND r.MUD_IDCHAMP = 63
+
+-- PLM APPROVAL
+LEFT JOIN MCHPSUTILISATDATA m1
+       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = m1.MUD_CLEENTITE
+      AND m1.MUD_IDCHAMP = 157
+
+-- PLM CREATED
+LEFT JOIN MCHPSUTILISATDATA b
+       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = b.MUD_CLEENTITE
+      AND b.MUD_IDCHAMP = 158
+
+-- PLM PO NUMBER
+LEFT JOIN MCHPSUTILISATDATA c
+       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = c.MUD_CLEENTITE
+      AND c.MUD_IDCHAMP = 159
+
+-- INCOTERM
+LEFT JOIN MCHPSUTILISATDATA inc
+       ON RTRIM(P.GP_TIERS) = RTRIM(inc.MUD_CLEENTITE)
+      AND inc.MUD_IDCHAMP = 65
+
+WHERE P.GP_DATECREATION BETWEEN '2026-05-01' AND '2026-12-31'
+ 
+  AND ARTICLE_COMPL.GA_TYPEARTICLE NOT IN ('FI')
+  AND P.GP_NATUREPIECEG = 'CF'
+  AND P.GP_DEPOT = '1101'
+  --AND P.GP_TIERS = 'V100174'
+  AND P.GP_NUMERO = '20956'
+
+ORDER BY
+    P.GP_DATEPIECE,
+    P.GP_NUMERO,
+    L.GL_NUMLIGNE
+
+
+
+	SELECT TOP 1
+    L.GL_CODEARTICLE,
+    L.GL_LIBELLE,
+    A.GA_LIBELLE,
+    A.GA_LIBCOMPL
+FROM LIGNE L
+JOIN ARTICLE A
+    ON A.GA_ARTICLE = L.GL_ARTICLE
+WHERE L.GL_NUMERO = 20956
+
 ORDER BY
     P.GP_DATEPIECE,
     P.GP_NUMERO,
