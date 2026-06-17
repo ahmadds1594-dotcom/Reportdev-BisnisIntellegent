@@ -1,0 +1,31 @@
+
+
+SELECT 
+
+    C.MCC_CODECOND AS Sales_Condition,
+    C.MCC_LIBELLE,
+	C.MCC_ARTSOLDE,
+    D.MDR_TYPEDECLENCH,
+
+    CASE
+        WHEN D.MDR_TYPEDECLENCH = 'REG'
+            THEN 'Fields'
+
+        WHEN D.MDR_TYPEDECLENCH = 'LIS'
+            THEN 'Item List'
+
+        WHEN D.MDR_TYPEDECLENCH = 'CHA'
+            THEN 'Fields & Item List'
+
+        ELSE D.MDR_TYPEDECLENCH
+
+    END AS Condition_Type,
+
+    D.MDR_CODELISTE
+    --D.MDR_LISTEARTICLE
+
+
+FROM CONDITIONCOM C
+
+LEFT JOIN MDECLENCHEUR D
+ON C.MCC_DECLENCHART = D.MDR_DECLENCHEUR
