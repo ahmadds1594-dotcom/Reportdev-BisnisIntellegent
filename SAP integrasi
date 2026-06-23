@@ -1,0 +1,36 @@
+ZDELETE ERR INTEGRASI CEGID
+DO BEGIN
+
+Declare Client         VARCHAR(3);
+Declare TanggalAwal    VARCHAR(8);
+Declare TanggalAkhir   VARCHAR(8);
+
+/* ---------------INPUT DISINI --------------------- */
+Client = '300';
+TanggalAwal  = '20231201';
+TanggalAkhir  = '20231231';
+/* ---------------INPUT DISINI --------------------- */
+
+DELETE FROM YCEGIDTERR
+WHERE DOCNUM IN ( SELECT DOCNUM FROM YCEGIDT002 WHERE POSSTATUS = '1' AND ERDAT BETWEEN TanggalAwal AND TanggalAkhir
+                  AND MANDT = Client ) AND
+      MANDT = Client;
+
+DELETE FROM YCEGIDT008
+WHERE DOCNUM IN ( SELECT DOCNUM FROM YCEGIDT002 WHERE POSSTATUS = '1' AND ERDAT BETWEEN TanggalAwal AND TanggalAkhir
+                  AND MANDT = Client ) AND
+      MANDT = Client;
+
+DELETE FROM YCEGIDT007
+WHERE DOCNUM IN ( SELECT DOCNUM FROM YCEGIDT002 WHERE POSSTATUS = '1' AND ERDAT BETWEEN TanggalAwal AND TanggalAkhir
+                  AND MANDT = Client ) AND
+      MANDT = Client;
+
+DELETE FROM YCEGIDT006
+WHERE DOCNUM IN ( SELECT DOCNUM FROM YCEGIDT002 WHERE POSSTATUS = '1' AND ERDAT BETWEEN TanggalAwal AND TanggalAkhir
+                  AND MANDT = Client ) AND
+      MANDT = Client;
+
+DELETE FROM YCEGIDT002 WHERE POSSTATUS = '1' AND ERDAT BETWEEN TanggalAwal AND TanggalAkhir AND MANDT = Client;
+
+END;
