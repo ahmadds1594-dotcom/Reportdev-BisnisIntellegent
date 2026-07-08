@@ -1,5 +1,10 @@
+Kalau mau Include Consignment (All Sales), cukup tambahkan join ke ARTICLE_COMPL (kalau nanti mau dipakai filter) tapi jangan tambahkan filter GA_LIBREART6.
 
-	SELECT TOP (10)
+Querynya jadi:
+--top 10 toko dengan semua kondisi consighment dan non consighment
+
+
+  SELECT TOP (10)
 
     ROW_NUMBER() OVER (ORDER BY SUM(L.GL_TOTALTTCDEV) DESC) AS Ranking,
 
@@ -9,8 +14,7 @@
     COUNT(DISTINCT P.GP_NUMERO)           AS TotalTransaksi,
 
     SUM(L.GL_QTEFACT)                     AS TotalQty,
-	SUM(L.GL_TOTALHT)						AS NetSales,
-
+    SUM(L.GL_TOTALHT)                     AS NetSales,
     SUM(L.GL_TOTALTTCDEV)                 AS CustomerPaid
 
 FROM PIECE P
@@ -21,15 +25,19 @@ INNER JOIN LIGNE L
    AND P.GP_NUMERO       = L.GL_NUMERO
    AND P.GP_INDICEG      = L.GL_INDICEG
 
+LEFT JOIN ARTICLE_COMPL AC
+    ON L.GL_ARTICLE = AC.GA_ARTICLE
+
 LEFT JOIN ETABLISS E
     ON P.GP_ETABLISSEMENT = E.ET_ETABLISSEMENT
 
-WHERE P.GP_NATUREPIECEG IN ('FFO','BLC','AVS')
+WHERE P.GP_NATUREPIECEG IN ('FFO')
   AND LEFT(P.GP_SOUCHE,1) IN ('2','8')
   AND P.GP_SUPPRIME <> 'X'
   AND P.GP_CONFIE <> 'X'
-  AND P.GP_DATEPIECE >= '2026-07-01'
-  AND P.GP_DATEPIECE <  '2026-07-02'
+  AND P.GP_TYPECOMPTA = 'TIC'
+  AND P.GP_DATEPIECE >= '2026-06-01'
+  AND P.GP_DATEPIECE <  '2026-06-02'
 
 GROUP BY
     P.GP_ETABLISSEMENT,
@@ -37,3 +45,33 @@ GROUP BY
 
 ORDER BY
     CustomerPaid DESC;
+
+
+--Kalau mau Exclude Consignment (Non Consignment)
+
+--Tinggal tambahkan 1 baris di WHERE:
+
+--AND ISNULL(LTRIM(RTRIM(AC.GA_LIBREART6)), '') = ''
+
+SEHINGGA MENJADI
+...
+WHERE P.GP_NATUREPIECEG IN ('FFO','BLC','AVS')
+  AND LEFT(P.GP_SOUCHE,1) IN ('2','8')
+  AND P.GP_SUPPRIME <> 'X'
+  AND P.GP_CONFIE <> 'X'
+  AND P.GP_TYPECOMPTA = 'TIC'
+  AND P.GP_DATEPIECE >= '2026-07-01'
+  AND P.GP_DATEPIECE <  '2026-07-02'
+  AND ISNULL(LTRIM(RTRIM(AC.GA_LIBREART6)), '') = ''
+
+
+--Ringkasnya:
+All Sales (Include Consignment) → tanpa filter GA_LIBREART6.
+Non Consignment → AND ISNULL(LTRIM(RTRIM(AC.GA_LIBREART6)), '') = ''.
+
+
+
+
+
+
+
