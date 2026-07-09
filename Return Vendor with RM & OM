@@ -1,0 +1,212 @@
+---- TES JAM 11
+;WITH RM AS
+(
+    
+        SELECT
+    ZCE_ETABLISSEMENT,
+    ZCE_COMMERCIAL,
+    ZCE_EMAIL,
+    ZCE_PERIODE,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY ZCE_ETABLISSEMENT
+            ORDER BY ZCE_PERIODE DESC
+        ) AS rn
+    FROM ZETABPOS
+    WHERE RTRIM(ZCE_POSITION) = 'RM'
+),
+OM AS
+(
+   SELECT
+    ZCE_ETABLISSEMENT,
+    ZCE_COMMERCIAL,
+    ZCE_EMAIL,
+    ZCE_PERIODE,
+        ROW_NUMBER() OVER
+        (
+            PARTITION BY ZCE_ETABLISSEMENT
+            ORDER BY ZCE_PERIODE DESC
+        ) AS rn
+    FROM ZETABPOS
+    WHERE RTRIM(ZCE_POSITION) = 'OM'
+)
+
+SELECT
+
+						--TESTING TAMBAHAN 
+				
+							ISNULL(CRM.GCL_LIBELLE,'') AS RM_NAME,
+							ISNULL(RM.ZCE_EMAIL,'')    AS RM_EMAIL,
+
+							ISNULL(COM.GCL_LIBELLE,'') AS OM_NAME,
+							ISNULL(OM.ZCE_EMAIL,'')    AS OM_EMAIL,
+                    -- HEADER
+                    P.GP_REFINTERNE                               	AS Internal_reff,
+                   P.GP_ETATVISA									AS [Tanda Approved],
+                    P.GP_NUMERO										AS PO_NO,
+                    CONVERT(date, P.GP_DATEPIECE )       			AS TANGGAL,
+                    CONVERT(date, P.GP_DATEMODIF )      			AS TANGGAL_MODIF,
+                    E.ET_ETABLISSEMENT                           	AS Site,
+					CASE
+						WHEN LEFT(E.ET_ETABLISSEMENT,1) = 'C'
+						THEN ISNULL(ZTC.ZTC_ETABLISSMENT,E.ET_ETABLISSEMENT)
+							ELSE E.ET_ETABLISSEMENT
+							END AS SiteII,
+
+                    E.ET_LIBELLE                                  	AS Nama_site,
+					CASE
+						WHEN LEFT(E.ET_ETABLISSEMENT,1) = 'C'
+						THEN ISNULL(ZTC.ZTC_LIBELLE,E.ET_LIBELLE)
+					ELSE E.ET_LIBELLE
+					END AS Nama_siteII,
+                    E.ET_ADRESSE1                                 	AS Alamat,
+                    E.ET_TELEPHONE                                  AS Telephone,
+                    E.ET_CODEPOSTAL                                 AS Kode_pos,
+                    E.ET_VILLE                                      AS Kota,
+                    U1.US_LIBELLE                                 	AS CREATED_BY,
+                    P.GP_VISEUR                                     AS APPROVED_BY,
+                    U2.US_LIBELLE                                 	AS APPROVED_BY2,
+                    P.GP_LIBREPIECE1                              	AS TYPE_PO,
+                    P.GP_LIBREPIECE2                              	AS TYPE_PENERIMAAN,
+                    P.GP_DEVISE                                     AS CURRENCY,
+                    P.gp_regimetaxe                                 AS TAX,
+                    -- VENDOR
+                    V.T_TIERS                                       AS vendor,
+                    V.T_LIBELLE                                     AS Nama_vendor,
+                    V.T_ADRESSE1                                    AS alamat_vendor,
+                    V.T_EMAIL                                       AS EMAIL,
+                    V.T_CODEPOSTAL                                  AS kodepos_vendor,
+                    V.T_VILLE                                       AS kota_vendor,
+                    M.MR_LIBELLE                                    AS TERM_OF_PAYMENT,
+                    CONVERT (date,P.GP_DATELIVRAISON) 				AS DELIVERY_DATE,
+                    -- DETAIL
+                    L.GL_NUMLIGNE                                   AS NO_URUT,
+                    l.GL_NUMORDRE                                   AS NO_URUT2,
+                    L.GL_CODEARTICLE                                AS Artikel_Code,
+                    L.GL_REFARTBARRE                                AS BARCODE,
+					   ISNULL(DI1.GDI_LIBELLE, '')       		    AS Color,
+                    ISNULL(A.GA_CODEDIM1, '')         	            AS Color_Code,
+                    ISNULL(DI2.GDI_LIBELLE, '')       		        AS Size,
+                    ISNULL(DI2.GDI_CODEDIM, '')       	            AS Size_Code,
+                    ISNULL(BRAND.CC_LIBELLE, '')      	            AS Brand,
+                    ISNULL(GENDER.CC_LIBELLE, '')     	            AS Gender,
+                    L.GL_LIBELLE                                  	AS DESCRIPTION_OLD,
+                    A.GA_LIBELLE                                  	AS DESCRIPTION,
+                    A.GA_LIBCOMPL                                 	AS DESCRIPTION_PLM,
+                    L.GL_QTEFACT                                  	AS QTY,
+                    A.GA_PVTTC                                      AS TAG_PRICE,
+                    L.GL_PUHTDEV                                  	AS UNIT_PRICE,
+                    L.GL_REMISELIGNE                              	AS DISKON,
+                    L.GL_TOTALHTDEV                               	AS DPP,
+                    L.GL_TOTALTTCDEV - L.GL_TOTALHTDEV      		AS PPN,
+                    L.GL_TOTALTTCDEV                              	AS TOTAL_AMOUNTH,
+                    ISNULL(m1.MUD_VALCHAMP, '')						AS PLM_APPROVED_BY,
+					ISNULL(b.MUD_VALCHAMP, '')						AS PLM_CREATED_BY,
+					ISNULL(c.MUD_VALCHAMP, '') AS PLM_PO_NO
+					FROM PIECE P
+            --BARU 
+
+                LEFT JOIN LIGNE L
+                       ON P.GP_NUMERO = L.GL_NUMERO
+                       AND P.GP_NATUREPIECEG = L.GL_NATUREPIECEG
+                       AND P.GP_SOUCHE = L.GL_SOUCHE
+                LEFT JOIN GCVTIERSCOMPL V
+                       ON P.GP_TIERS = V.T_TIERS
+                LEFT JOIN ETABLISS E
+                       ON P.GP_ETABLISSEMENT = E.ET_ETABLISSEMENT
+                LEFT JOIN UTILISAT U1
+                       ON P.GP_CREATEUR = U1.US_UTILISATEUR
+                LEFT JOIN UTILISAT U2
+                       ON P.GP_VISEUR = U2.US_UTILISATEUR
+                LEFT JOIN MODEREGL M
+                       ON V.T_MODEREGLE = M.MR_MODEREGLE
+                LEFT JOIN ARTICLE_COMPL WITH (NOLOCK)
+					ON L.GL_ARTICLE = ARTICLE_COMPL.GA_ARTICLE
+           --tabahan 
+		   LEFT JOIN ARTICLE A
+       ON A.GA_ARTICLE = L.GL_ARTICLE
+	   OUTER APPLY
+(
+    SELECT TOP (1)
+           A2.GA_DOMAINE,
+           A2.GA_FAMILLENIV1
+    FROM LIGNE L2
+    INNER JOIN ARTICLE A2
+        ON A2.GA_ARTICLE = L2.GL_ARTICLE
+    WHERE L2.GL_NUMERO = P.GP_NUMERO
+      AND L2.GL_NATUREPIECEG = P.GP_NATUREPIECEG
+      AND L2.GL_SOUCHE = P.GP_SOUCHE
+      AND A2.GA_CODEARTICLE <> 'ZPEN2'
+) BM
+LEFT JOIN ZETABLISSCNTR ZTC
+       ON P.GP_ETABLISSEMENT = ZTC.ZTC_MAINETABLISSMENT
+      AND BM.GA_DOMAINE = ZTC.ZTC_LIBREZTC3
+	AND BM.GA_FAMILLENIV1 = ZTC.ZTC_LIBREZTC2
+
+LEFT JOIN RM
+       ON RM.ZCE_ETABLISSEMENT =
+          CASE
+              WHEN LEFT(E.ET_ETABLISSEMENT,1)='C'
+                   THEN ISNULL(ZTC.ZTC_ETABLISSMENT,E.ET_ETABLISSEMENT)
+              ELSE E.ET_ETABLISSEMENT
+          END
+      AND RM.rn=1
+
+LEFT JOIN COMMERCIAL CRM
+       ON CRM.GCL_COMMERCIAL = RM.ZCE_COMMERCIAL
+
+LEFT JOIN OM
+       ON OM.ZCE_ETABLISSEMENT =
+          CASE
+              WHEN LEFT(E.ET_ETABLISSEMENT,1)='C'
+                   THEN ISNULL(ZTC.ZTC_ETABLISSMENT,E.ET_ETABLISSEMENT)
+              ELSE E.ET_ETABLISSEMENT
+          END
+      AND OM.rn=1
+
+LEFT JOIN COMMERCIAL COM
+       ON COM.GCL_COMMERCIAL = OM.ZCE_COMMERCIAL
+
+
+
+LEFT JOIN MCHPSUTILISATDATA STYLE_NAME
+       ON STYLE_NAME.MUD_ENTITEMCD = 'ART'
+      AND STYLE_NAME.MUD_IDCHAMP = 4
+      AND STYLE_NAME.MUD_CLEENTITE = A.GA_ARTICLE
+
+
+					                LEFT JOIN CHOIXCOD BRAND
+                       ON BRAND.CC_TYPE = 'GDM'
+                      AND BRAND.CC_CODE = A.GA_DOMAINE
+
+                LEFT JOIN CHOIXCOD GENDER
+                       ON GENDER.CC_TYPE = 'FN1'
+                      AND GENDER.CC_CODE = A.GA_FAMILLENIV1
+
+                LEFT JOIN DIMENSION DI1
+                       ON LTRIM(RTRIM(DI1.GDI_TYPEDIM)) = 'DI1'
+                      AND DI1.GDI_CODEDIM = A.GA_CODEDIM1
+                      AND DI1.GDI_GRILLEDIM = A.GA_GRILLEDIM1
+
+                LEFT JOIN DIMENSION DI2
+                       ON LTRIM(RTRIM(DI2.GDI_TYPEDIM)) = 'DI2'
+                      AND DI2.GDI_CODEDIM = A.GA_CODEDIM2
+                      AND DI2.GDI_GRILLEDIM = A.GA_GRILLEDIM2
+                LEFT JOIN MCHPSUTILISATDATA m1
+                       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = m1.MUD_CLEENTITE
+                       AND m1.MUD_IDCHAMP=157
+                LEFT JOIN MCHPSUTILISATDATA b
+                       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = b.MUD_CLEENTITE
+                       AND b.MUD_IDCHAMP=158
+                LEFT JOIN MCHPSUTILISATDATA c
+                       ON RTRIM(GP_NATUREPIECEG)+';'+GP_SOUCHE+';'+CAST(GP_NUMERO AS VARCHAR(18))+';'+CAST(GP_INDICEG AS VARCHAR(4)) = c.MUD_CLEENTITE
+                       AND c.MUD_IDCHAMP=113
+                WHERE P.GP_DATEPIECE BETWEEN '2026-07-06' AND '2026-07-07'
+                  AND ARTICLE_COMPL.GA_TYPEARTICLE NOT IN ('FI')
+                  AND P.GP_NATUREPIECEG = 'BFA'
+                  --AND P.GP_LIBREPIECE1 IN ('POTLOC', 'POTIMP')
+                  --AND P.GP_LIBREPIECE2 IN ('RCTBUF', 'RCTCRS')
+                ORDER BY
+                    P.GP_DATECREATION,
+                    P.GP_NUMERO,
+                    L.GL_NUMLIGNE;
