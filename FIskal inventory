@@ -1,0 +1,50 @@
+SELECT
+    --GCM.GL_NATUREPIECEG       AS [Type],
+	CASE
+    WHEN GCM.GL_NATUREPIECEG = 'EEX' THEN 'Special inputs'
+    WHEN GCM.GL_NATUREPIECEG = 'SEX' THEN 'Special outputs'
+END AS [Type],
+    P.GP_REFINTERNE           AS [Internal ref],
+    P.GP_ETABLISSEMENT        AS [Store of the document],
+    BRAND.CC_LIBELLE          AS [Sales division],
+
+    GCM.GL_QTESTOCK           AS [Line Quantity],
+
+    P.GP_NUMERO               AS [Doc.No],
+    P.GP_DATEPIECE            AS [Doc. date],
+
+    GCM.GL_ETABLISSEMENT      AS [Site],
+    GCM.GL_REFARTBARRE        AS [Line barcode],
+    GCM.GL_ARTICLE            AS [Item code - line],
+    GCM.GL_LIBELLE            AS [Line description],
+
+    GCM.GL_CREATEUR           AS [Original user],
+    GENDER.CC_LIBELLE         AS [GENDER Document line]
+
+FROM dbo.GCLIGNEARTDIM GCM
+
+INNER JOIN PIECE P
+    ON  P.GP_NATUREPIECEG = GCM.GP_NATUREPIECEG
+    AND P.GP_SOUCHE       = GCM.GP_SOUCHE
+    AND P.GP_NUMERO       = GCM.GP_NUMERO
+    AND P.GP_INDICEG      = GCM.GP_INDICEG
+
+INNER JOIN ARTICLE ARTICLE
+    ON ARTICLE.GA_ARTICLE = GCM.GL_ARTICLE
+
+LEFT JOIN CHOIXCOD BRAND
+    ON BRAND.CC_TYPE = 'GDM'
+    AND BRAND.CC_CODE = ARTICLE.GA_DOMAINE
+
+LEFT JOIN CHOIXCOD GENDER
+    ON GENDER.CC_TYPE = 'FN1'
+    AND GENDER.CC_CODE = ARTICLE.GA_FAMILLENIV1
+
+WHERE
+    RTRIM(GCM.GP_SUPPRIME) <> 'X'
+    AND RTRIM(GCM.GP_NATUREPIECEG) IN ('EEX', 'SEX')
+
+    AND GCM.GP_ETABLISSEMENT = '1399'
+
+    AND GCM.GP_DATEPIECE >= '2026-07-01'
+    AND GCM.GP_DATEPIECE <  '2026-08-01';
