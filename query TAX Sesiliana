@@ -159,3 +159,138 @@ WHERE p.GP_NATUREPIECEG = 'TEM'
     us.US_UTILISATEUR,
     us.US_LIBELLE,
     ytc.YTC_TABLELIBRETIERS9;
+
+
+
+
+
+
+
+-- ada site penerima 
+SELECT 
+    [DocumentDate1]         = FORMAT(p.GP_DATEPIECE, 'dd MMM yyyy'),
+    [DocumenteNo1]          = l.GL_NUMERO,
+    [MerchandiseType]       = CASE 
+                                WHEN LTRIM(RTRIM(ISNULL(adm.GA2_FAMILLENIV4, ''))) IN ('UNI','GWP','HGR','SRV','PPR','SMP','DUS') 
+                                THEN 'Non-Merchandise' 
+                                ELSE 'Merchandise' 
+                              END,
+    [ConsigmentType]        = CASE 
+                                WHEN LTRIM(RTRIM(ISNULL(adm.GA_LIBREART6, ''))) = '' 
+                                THEN 'Non-Consigment' 
+                                ELSE 'Consigment' 
+                              END,
+    [Brand]                 = ISNULL(brand.CC_LIBELLE, ''),
+    [Gender]                = ISNULL(gender.CC_LIBELLE, ''),
+    [ArticleCode]           = ISNULL(l.GL_CODEARTICLE, ''),
+    [Barcode]               = ISNULL(adm.GA_CODEBARRE, ''),
+    [ArticleDescription]    = ISNULL(adm.GA_LIBELLE, ''),
+    [Document]              = ISNULL(pb.PB_LIBELLE, ''),
+    [BillingType]           = '',
+    [WholesalesType]        = '',
+    [MovementReason]        = ISNULL(mot.MOT_LIBELLE, ''),
+    [Qty]                   = CASE 
+                                WHEN pp.GPP_QTEMOINS LIKE '%PHY%' THEN CAST(SUM(l.GL_QTEFACT) * -1 AS INT)
+                                ELSE CAST(SUM(l.GL_QTEFACT) AS INT)
+                              END,
+    [UOM]                   = ISNULL((SELECT TOP 1 ar2.GA_QUALIFUNITESTO FROM ARTICLE ar2 WHERE ar2.GA_ARTICLE = adm.GA_ARTICLE), ''),
+    [Cost]                  = CASE 
+                                WHEN adm.GA_CODEBARRE IN ('30000860','30000861') THEN 0
+                                WHEN pp.GPP_QTEMOINS LIKE '%PHY%' THEN CAST(SUM(ABS(l.GL_PMRP) * (l.GL_QTEFACT * -1)) AS DECIMAL(18,4))
+                                ELSE CAST(SUM(ABS(l.GL_PMRP) * l.GL_QTEFACT) AS DECIMAL(18,4))
+                              END,
+    [ConsigmentCostPrice]   = 0,
+    [PurchasePrice]         = SUM(l.GL_DPA),
+    [SAPCostPrice]          = CASE 
+                                WHEN adm.GA_CODEBARRE IN ('30000860','30000861') THEN 0
+                                WHEN pp.GPP_QTEMOINS LIKE '%PHY%' THEN CAST(SUM(ABS(l.GL_PMRP) * (l.GL_QTEFACT * -1)) AS DECIMAL(18,4))
+                                ELSE CAST(SUM(ABS(l.GL_PMRP) * l.GL_QTEFACT) AS DECIMAL(18,4))
+                              END,
+    [DocReference]          = LTRIM(RTRIM(p.GP_NATUREPIECEG)) + '_' + p.GP_SOUCHE + '_' + CAST(p.GP_NUMERO AS VARCHAR(20)) + '_' + CAST(p.GP_INDICEG AS VARCHAR(2)),
+    [InternalReference]     = ISNULL(p.GP_REFINTERNE, ''),
+    [PONo]                  = '',
+    [Vendor]                = CASE WHEN pp.GPP_NATURETIERS LIKE '%FOU%' THEN ISNULL(fou.T_LIBELLE, '') ELSE '' END,
+    [Customer]              = CASE WHEN pp.GPP_NATURETIERS LIKE '%CLI%' THEN ISNULL(cli.T_LIBELLE, '') ELSE '' END,
+    [Site]                  = ISNULL(et.ET_ETABLISSEMENT, ''),  -- Site Pengirim
+    [SiteName]              = ISNULL(et.ET_LIBELLE, ''),        -- Nama Site Pengirim
+    [SitePenerima]          = ISNULL(p.GP_ETABLISSDEST, ''),    -- KOLOM BARU: Site Penerima (Batam)
+    [WarehouseCode]         = ISNULL(l.GL_DEPOT, ''),
+    [CostCenter]            = ISNULL(mul.MUL_LIBELLE, ''),
+    [UserName]              = ISNULL(us.US_LIBELLE, ''),
+    [Textbox36]             = '',
+    [Textbox40]             = '',
+    [Textbox34]             = '',
+    [Textbox42]             = '',
+    [Textbox60]             = ''
+FROM ARTICLEDIM_MODE adm
+JOIN LIGNE l 
+    ON adm.GA_ARTICLE = l.GL_ARTICLE
+JOIN PIECE p 
+    ON l.GL_NATUREPIECEG = p.GP_NATUREPIECEG
+   AND l.GL_SOUCHE = p.GP_SOUCHE
+   AND l.GL_NUMERO = p.GP_NUMERO
+   AND l.GL_INDICEG = p.GP_INDICEG
+JOIN METABDEPOT mde 
+    ON mde.MDE_DEPOT = l.GL_DEPOT -- Dikembalikan membaca Gudang Pengirim
+JOIN ETABLISS et 
+    ON et.ET_ETABLISSEMENT = mde.MDE_ETABLISSEMENT AND et.ET_TYPEETAB <> 'COR'
+JOIN PARPIECE pp 
+    ON pp.GPP_NATUREPIECEG = p.GP_NATUREPIECEG
+   AND ((((pp.GPP_QTEPLUS LIKE '%PHY%' OR pp.GPP_QTEMOINS LIKE '%PHY%') AND pp.GPP_CODEPIECEOBL2 = '-')) OR pp.GPP_NATUREPIECEG = 'CEX')
+LEFT JOIN PARPIECE_BAHASA pb 
+    ON pb.PB_NATUREPIECEG = l.GL_NATUREPIECEG
+LEFT JOIN UTILISAT us 
+    ON us.US_UTILISATEUR = p.GP_UTILISATEUR
+LEFT JOIN CHOIXCOD brand 
+    ON brand.CC_TYPE = 'GDM' AND brand.CC_CODE = adm.GA_DOMAINE
+LEFT JOIN CHOIXCOD gender 
+    ON gender.CC_TYPE = 'FN1' AND gender.CC_CODE = adm.GA_FAMILLENIV1
+LEFT JOIN TIERS fou 
+    ON p.GP_TIERS = fou.T_TIERS AND fou.T_NATUREAUXI = 'FOU'
+LEFT JOIN TIERS cli 
+    ON p.GP_TIERS = cli.T_TIERS AND cli.T_NATUREAUXI = 'CLI'
+LEFT JOIN MMOTIFMVT mot 
+    ON mot.MOT_MOTIFMVT = l.GL_MOTIFMVT
+LEFT JOIN MCHPSUTILISATDATA mud 
+    ON mud.MUD_ENTITEMCD = 'DOC' AND mud.MUD_IDCHAMP = '15' 
+   AND mud.MUD_CLEENTITE = REPLACE(l.GL_NATUREPIECEG + ';' + l.GL_SOUCHE + ';' + CAST(l.GL_NUMERO AS VARCHAR(5)) + ';' + CAST(l.GL_INDICEG AS VARCHAR(2)), ' ', '') 
+   AND (p.GP_NATUREPIECEG = 'BLC' AND p.GP_TOTALTTC = 0)
+LEFT JOIN MCHPSUTILISATLIST mul 
+    ON mul.MUL_ENTITEMCD = mud.MUD_ENTITEMCD AND mul.MUL_IDCHAMP = mud.MUD_IDCHAMP AND mul.MUL_CODECHOIX = mud.MUD_VALCHAMP
+LEFT JOIN GCVTIERSCOMPL ytc 
+    ON p.GP_TIERS = ytc.T_TIERS
+WHERE p.GP_NATUREPIECEG = 'TEM'
+  AND p.GP_ETABLISSDEST IN ('2346', '2347', '2355', '2356', '2358', '2420', '2474', '5154', '5260', '5413', '5818', '5822', '5823','C102','C105')
+  AND p.GP_DATEPIECE >= '2026-08-01'
+  AND p.GP_DATEPIECE <  '2026-09-09'
+  AND p.GP_SUPPRIME <> 'X'
+  AND l.GL_QTEFACT <> 0
+GROUP BY 
+    p.GP_DATEPIECE,
+    l.GL_NUMERO,
+    l.GL_NATUREPIECEG,
+    adm.GA2_FAMILLENIV4,
+    adm.GA_LIBREART6,
+    brand.CC_LIBELLE,
+    gender.CC_LIBELLE,
+    l.GL_CODEARTICLE,
+    adm.GA_CODEBARRE,
+    adm.GA_LIBELLE,
+    adm.GA_ARTICLE,
+    pb.PB_LIBELLE,
+    p.GP_NATUREPIECEG,
+    p.GP_SOUCHE,
+    p.GP_NUMERO,
+    p.GP_INDICEG,
+    p.GP_REFINTERNE,
+    p.GP_ETABLISSDEST,
+    pp.GPP_NATURETIERS,
+    pp.GPP_QTEMOINS,
+    fou.T_LIBELLE,
+    cli.T_LIBELLE,
+    et.ET_ETABLISSEMENT,
+    et.ET_LIBELLE,
+    l.GL_DEPOT,
+    mot.MOT_LIBELLE,
+    mul.MUL_LIBELLE,
+    us.US_LIBELLE;
