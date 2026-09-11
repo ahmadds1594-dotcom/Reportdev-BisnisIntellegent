@@ -1,0 +1,81 @@
+---tes
+SELECT 
+    ISNULL(Site.MAIN_SITE, '')                            AS MAIN_SITE,
+    ISNULL(Site.KODE_SITE, '')                            AS KODE_SITE,
+    ISNULL(Site.KODE_BRAND, '')                           AS BRAND,
+    ISNULL(CHN.YX_LIBELLE, ISNULL(Site.CHANNEL_CODE, '')) AS TYPE_SITE,
+    ISNULL(Site.ADDRESS_1, '')                            AS ADDRESS_1,
+    ISNULL(Site.ADDRESS_2, '')                            AS ADDRESS_2,
+    ISNULL(Site.CITY, '')                                 AS CITY,
+    ISNULL(Site.POST_CODE, '')                            AS POST_CODE,
+    ISNULL(Site.EMAIL, '')                                AS EMAIL,
+    ISNULL(Site.STATUS, '')                               AS STATUS
+FROM (
+    -- 1. SITE KEPALA 2, 8, DAN 9 ETABLISS
+    SELECT 
+        UPPER(ISNULL(Z_MAP.ZTC_MAINETABLISSMENT, E.ET_ETABLISSEMENT)) AS MAIN_SITE,
+        E.ET_ETABLISSEMENT  AS KODE_SITE,
+        
+        E.ET_ADRESSE1       AS ADDRESS_1,
+        E.ET_ADRESSE2       AS ADDRESS_2,
+        E.ET_VILLE          AS CITY,
+        E.ET_CODEPOSTAL     AS POST_CODE,
+        
+        COALESCE(
+            NULLIF(E.ET_EMAIL, ''), 
+            NULLIF(E.ET_EMAIL2, '')
+        ) AS EMAIL,
+
+        E.ET_LIBREET3       AS KODE_BRAND,
+        E.ET_LIBREET9       AS CHANNEL_CODE,
+
+        -- ini etablis ambil hanya yang x 
+        CASE 
+            WHEN E.ET_FERME = 'X' THEN 'Close'
+            ELSE 'Open'
+        END AS STATUS
+    FROM ETABLISS E
+    LEFT JOIN (
+        SELECT DISTINCT ZTC_ETABLISSMENT, ZTC_MAINETABLISSMENT
+        FROM ZETABLISSCNTR
+        WHERE ISNULL(LTRIM(RTRIM(ZTC_MAINETABLISSMENT)), '') NOT IN ('', '0', ';')
+    ) Z_MAP ON E.ET_ETABLISSEMENT = Z_MAP.ZTC_ETABLISSMENT
+    WHERE LEFT(E.ET_ETABLISSEMENT, 1) IN ('2', '8', '9')
+
+    UNION ALL
+
+    -- 2. SITE KEPALA 5 DAN 6 dari table Z
+    SELECT 
+        UPPER(Z.ZTC_MAINETABLISSMENT) AS MAIN_SITE,
+        Z.ZTC_ETABLISSMENT     AS KODE_SITE,
+        
+        Z.ZTC_ADRESSE1      AS ADDRESS_1,
+        Z.ZTC_ADRESSE2      AS ADDRESS_2,
+        Z.ZTC_VILLE         AS CITY,
+        Z.ZTC_CODEPOSTAL    AS POST_CODE,
+        Z.ZTC_EMAIL         AS EMAIL,
+
+        COALESCE(
+            NULLIF(Z.ZTC_LIBREZTC3, ''),
+            NULLIF(E_MAIN.ET_LIBREET3, '')
+        ) AS KODE_BRAND,
+
+        E_MAIN.ET_LIBREET9  AS CHANNEL_CODE,
+
+        -- table Z
+        CASE 
+            WHEN Z.ZTC_CLOSINGDATE = '1900-01-01 00:00:00.000' THEN 'Open'
+            ELSE 'Close'
+        END AS STATUS
+    FROM ZETABLISSCNTR Z
+    INNER JOIN ETABLISS E_MAIN 
+        ON Z.ZTC_MAINETABLISSMENT = E_MAIN.ET_ETABLISSEMENT
+    WHERE LEFT(Z.ZTC_ETABLISSMENT, 1) IN ('5', '6')
+      AND UPPER(ISNULL(LTRIM(RTRIM(Z.ZTC_MAINETABLISSMENT)), '')) NOT IN ('', '0', ';')
+) AS Site
+
+LEFT JOIN CHOIXEXT CHN
+    ON CHN.YX_TYPE = 'EL9'
+   AND CHN.YX_CODE = Site.CHANNEL_CODE
+
+ORDER BY Site.KODE_SITE;
