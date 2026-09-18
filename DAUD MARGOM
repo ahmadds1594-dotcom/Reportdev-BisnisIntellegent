@@ -1,0 +1,78 @@
+WITH RawSalesCOGS AS (
+    SELECT 
+        Periode         = CONVERT(VARCHAR(6), l.GL_DATEPIECE, 112), -- YYYYMM (202608 / 202508)
+        [year]          = YEAR(l.GL_DATEPIECE),
+        [month]         = MONTH(l.GL_DATEPIECE),
+        Brands          = brand.CC_LIBELLE,
+        Cartegory       = cat.CC_LIBELLE,
+        Product_type    = ptype.CC_LIBELLE,
+        
+        -- Sold Qty
+        qty             = CAST(l.GL_QTEFACT AS INT),
+        
+        -- COGS per unit
+        cogs            = CASE 
+                            WHEN adm.GA_CODEBARRE IN ('30000860','30000861') THEN 0 
+                            ELSE ABS(l.GL_PMRP) 
+                          END,
+                          
+        -- Total COGS Amount
+        cogs_amount     = CASE 
+                            WHEN adm.GA_CODEBARRE IN ('30000860','30000861') THEN 0 
+                            ELSE ABS(l.GL_PMRP) * l.GL_QTEFACT 
+                          END
+    FROM PIECE p WITH(NOLOCK)
+    JOIN LIGNE l WITH(NOLOCK) 
+        ON p.GP_NATUREPIECEG = l.GL_NATUREPIECEG 
+       AND p.GP_SOUCHE       = l.GL_SOUCHE 
+       AND p.GP_NUMERO       = l.GL_NUMERO 
+       AND p.GP_INDICEG      = l.GL_INDICEG
+    JOIN ARTICLEDIM_MODE adm WITH(NOLOCK) 
+        ON l.GL_ARTICLE = adm.GA_ARTICLE
+    LEFT JOIN CHOIXCOD brand WITH(NOLOCK) 
+        ON brand.CC_TYPE = 'GDM' AND brand.CC_CODE = adm.GA_DOMAINE
+    LEFT JOIN CHOIXCOD cat WITH(NOLOCK) 
+        ON cat.CC_TYPE = 'FN4' AND cat.CC_CODE = adm.GA2_FAMILLENIV4
+    LEFT JOIN CHOIXCOD ptype WITH(NOLOCK) 
+        ON ptype.CC_TYPE = 'FN3' AND ptype.CC_CODE = adm.GA_FAMILLENIV3
+    WHERE p.GP_NATUREPIECEG = 'FFO'
+      AND p.GP_TYPECOMPTA   = 'TIC' -- Mengunci transaksi POS/Kasir
+      AND p.GP_SUPPRIME    <> 'X'
+      AND l.GL_QTEFACT     <> 0
+      AND adm.GA_STATUTART IN ('DIM','UNI')
+      
+      -- Filter Exclude Beauty
+      AND (ptype.CC_LIBELLE <> 'BEAUTY' OR ptype.CC_LIBELLE IS NULL)
+
+      -- Exclude Non-Merchandise (Paperbag, GWP, Services, Dus, Hanger)
+      AND ISNULL(LTRIM(RTRIM(adm.GA2_FAMILLENIV4)), '') NOT IN ('UNI','GWP','HGR','SRV','PPR','SMP','DUS','PPM')
+
+      -- Filter Periode Agustus 2026 dan Agustus 2025
+      AND (
+            (l.GL_DATEPIECE >= '2026-08-01' AND l.GL_DATEPIECE < '2026-09-01')
+         OR (l.GL_DATEPIECE >= '2025-08-01' AND l.GL_DATEPIECE < '2025-09-01')
+      )
+)
+SELECT 
+    Periode,
+    [year],
+    [month],
+    Brands,
+    Cartegory,
+    Product_type,
+    qty         = SUM(qty),
+    cogs        = CAST(AVG(cogs) AS DECIMAL(18,2)),
+    Cogs_Amount = SUM(cogs_amount)
+FROM RawSalesCOGS
+GROUP BY 
+    Periode,
+    [year],
+    [month],
+    Brands,
+    Cartegory,
+    Product_type
+ORDER BY 
+    Brands, 
+    Cartegory, 
+    Product_type, 
+    [year] DESC;
