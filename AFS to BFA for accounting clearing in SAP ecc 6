@@ -1,0 +1,169 @@
+
+SELECT 
+    a.xblnr_ff AS xblnr_afs,
+    CONCAT(a.blf_type, a.blf_site, a.blf_no) AS xblnr_bfa,
+    a.blf_type AS bfa_type,
+    a.blf_site AS bfa_site,
+    ISNULL(S.MAIN_SITE, a.blf_site) AS sap_site,
+    a.blf_no AS bfa_no,
+    a.ga_domaine,
+    a.gl_tiers,
+    V.T_LIBELLE AS NAMA_VENDOR,
+    a.gl_devise,
+    CAST(SUM(a.gl_totalht) AS BIGINT) AS AMOUNT
+FROM (
+    SELECT 
+        gl_naturepieceg, 
+        gl_souche, 
+        gl_numero, 
+        gl_tiers,
+        gl_devise,
+        /* Ambil Brand utama (mengabaikan '...') */
+        MAX(CASE WHEN ga_domaine <> '...' THEN ga_domaine END) OVER(
+            PARTITION BY gl_naturepieceg, gl_souche, gl_numero
+        ) AS ga_domaine,
+        /* Ambil Gender/Kategori utama dari GL_FAMILLENIV1 */
+        MAX(CASE WHEN gl_familleniv1 <> '...' AND gl_familleniv1 <> '' THEN gl_familleniv1 END) OVER(
+            PARTITION BY gl_naturepieceg, gl_souche, gl_numero
+        ) AS gender,
+        xblnr_FF = CONCAT(
+            RTRIM(gl_naturepieceg), gl_souche, gl_numero
+        ), 
+        BLF_DATE = SUBSTRING(
+            gl_pieceprecedente, 
+            1, 
+            CHARINDEX(';', gl_pieceprecedente) - 1
+        ), 
+        BLF_TYPE = SUBSTRING(
+            SUBSTRING(
+                gl_pieceprecedente, 
+                CHARINDEX(';', gl_pieceprecedente) + 1, 
+                LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+            ), 
+            1, 
+            CHARINDEX(
+                ';', 
+                SUBSTRING(
+                    gl_pieceprecedente, 
+                    CHARINDEX(';', gl_pieceprecedente) + 1, 
+                    LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                )
+            ) - 1
+        ), 
+        BLF_SITE = SUBSTRING(
+            SUBSTRING(
+                SUBSTRING(
+                    gl_pieceprecedente, 
+                    CHARINDEX(';', gl_pieceprecedente) + 1, 
+                    LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                ), 
+                CHARINDEX(
+                    ';', 
+                    SUBSTRING(
+                        gl_pieceprecedente, 
+                        CHARINDEX(';', gl_pieceprecedente) + 1, 
+                        LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                    )
+                ) + 1, 
+                LEN(
+                    SUBSTRING(
+                        gl_pieceprecedente, 
+                        CHARINDEX(';', gl_pieceprecedente) + 1, 
+                        LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                    )
+                ) - CHARINDEX(
+                    ';', 
+                    SUBSTRING(
+                        gl_pieceprecedente, 
+                        CHARINDEX(';', gl_pieceprecedente) + 1, 
+                        LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                    )
+                ) - 1
+            ), 
+            1, 
+            CHARINDEX(
+                ';', 
+                SUBSTRING(
+                    SUBSTRING(
+                        gl_pieceprecedente, 
+                        CHARINDEX(';', gl_pieceprecedente) + 1, 
+                        LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                    ), 
+                    CHARINDEX(
+                        ';', 
+                        SUBSTRING(
+                            gl_pieceprecedente, 
+                            CHARINDEX(';', gl_pieceprecedente) + 1, 
+                            LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                        )
+                    ) + 1, 
+                    LEN(
+                        SUBSTRING(
+                            gl_pieceprecedente, 
+                            CHARINDEX(';', gl_pieceprecedente) + 1, 
+                            LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                        )
+                    ) - CHARINDEX(
+                        ';', 
+                        SUBSTRING(
+                            gl_pieceprecedente, 
+                            CHARINDEX(';', gl_pieceprecedente) + 1, 
+                            LEN(gl_pieceprecedente) - CHARINDEX(';', gl_pieceprecedente) - 1
+                        )
+                    ) - 1
+                )
+            ) - 1
+        ), 
+        BLF_NO = SUBSTRING(
+            gl_pieceprecedente, 
+            CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente) + 1) + 1) + 1, 
+            CHARINDEX(';', gl_pieceprecedente + ';', CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente) + 1) + 1) + 1) 
+            - (CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente, CHARINDEX(';', gl_pieceprecedente) + 1) + 1) + 1)
+        ), 
+        gl_totalht
+    FROM GCLIGNEARTDIM (NOLOCK)
+    WHERE gl_pieceprecedente <> '' 
+      AND gl_naturepieceg = 'AFS' 
+      AND gl_datepiece >= '20250101' 
+      AND gl_datepiece < '20260101'
+      AND GL_TYPELIGNE = 'ART'
+) AS a
+LEFT JOIN TIERS V ON a.gl_tiers = V.T_TIERS
+/* Subquery Master Site: Kunci kombinasi Site + Brand + Gender (ZTC_LIBREZTC2) */
+LEFT JOIN (
+    SELECT 
+        UPPER(ISNULL(Z_MAP.ZTC_MAINETABLISSMENT, E.ET_ETABLISSEMENT)) AS MAIN_SITE,
+        E.ET_ETABLISSEMENT AS KODE_SITE,
+        E.ET_LIBREET3 AS KODE_BRAND,
+        '' AS GENDER
+    FROM ETABLISS E (NOLOCK)
+    LEFT JOIN (
+        SELECT DISTINCT ZTC_ETABLISSMENT, ZTC_MAINETABLISSMENT
+        FROM ZETABLISSCNTR (NOLOCK)
+        WHERE ISNULL(LTRIM(RTRIM(ZTC_MAINETABLISSMENT)), '') NOT IN ('', '0', ';')
+    ) Z_MAP ON E.ET_ETABLISSEMENT = Z_MAP.ZTC_ETABLISSMENT
+    WHERE LEFT(E.ET_ETABLISSEMENT, 1) IN ('1', '2', '8', '9')
+
+    UNION ALL
+
+    SELECT 
+        UPPER(Z.ZTC_ETABLISSMENT) AS MAIN_SITE,
+        Z.ZTC_MAINETABLISSMENT AS KODE_SITE,
+        Z.ZTC_LIBREZTC3 AS KODE_BRAND,
+        Z.ZTC_LIBREZTC2 AS GENDER
+    FROM ZETABLISSCNTR_V Z (NOLOCK)
+    WHERE UPPER(ISNULL(LTRIM(RTRIM(Z.ZTC_MAINETABLISSMENT)), '')) NOT IN ('', '0', ';')
+) S ON a.blf_site = S.KODE_SITE 
+   AND a.ga_domaine = S.KODE_BRAND 
+   AND (S.GENDER = '' OR a.gender = S.GENDER)
+GROUP BY 
+    a.xblnr_ff, 
+    a.blf_type, 
+    a.blf_site, 
+    S.MAIN_SITE,
+    a.blf_no, 
+    a.ga_domaine,
+    a.gl_tiers, 
+    V.T_LIBELLE, 
+    a.gl_devise
+ORDER BY a.xblnr_ff;
